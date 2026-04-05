@@ -38,8 +38,8 @@ export function SensorModalChart({ points }: SensorModalChartProps) {
   }
 
   return (
-    <div className="h-64 rounded-xl border border-gray-100 bg-white">
-      <ResponsiveContainer width="100%" height="100%">
+    <div className="h-64 min-h-[256px] min-w-0 rounded-xl border border-gray-100 bg-white">
+      <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={256}>
         <LineChart data={chartData} margin={{ top: 16, right: 16, left: 0, bottom: 8 }}>
           <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#dbe5ef" />
           <XAxis

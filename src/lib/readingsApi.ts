@@ -57,6 +57,7 @@ interface SubscribeOptions {
 }
 
 const DEFAULT_TABLE_CANDIDATES = [
+  'STP Sensors 6 months Data',
   'readings',
   'sensor_readings',
   'sensor_data',
