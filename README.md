@@ -21,7 +21,7 @@ View your app in AI Studio: https://ai.studio/apps/bb8966ca-0c62-4b09-924f-c2824
    - Optional: `VITE_SUPABASE_READINGS_TABLE` (exact table name)
    - Optional: `VITE_SUPABASE_READINGS_TABLES` (comma-separated fallback table names)
    - Playback simulation:
-     - `VITE_PLAYBACK_ENABLED` (`true` to replay from a fixed start timestamp)
+       - `VITE_PLAYBACK_ENABLED` (`false` for real live data, `true` only to replay from a fixed start timestamp)
      - `VITE_PLAYBACK_START_TIMESTAMP` (example `2025-09-01T00:00:00Z`)
      - `VITE_PLAYBACK_STEP_MINUTES` (data window size moved each step, default `1`)
      - `VITE_PLAYBACK_TICK_MS` (real delay between steps, default `60000`)

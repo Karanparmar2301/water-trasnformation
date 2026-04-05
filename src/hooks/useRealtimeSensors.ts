@@ -12,7 +12,7 @@ import {
 } from '../lib/readingsApi';
 
 const POLLING_FALLBACK_MS = 5000;
-const PLAYBACK_ENABLED = (import.meta.env.VITE_PLAYBACK_ENABLED || 'true').toLowerCase() === 'true';
+const PLAYBACK_ENABLED = (import.meta.env.VITE_PLAYBACK_ENABLED || 'false').trim().toLowerCase() === 'true';
 const PLAYBACK_START_TIMESTAMP = (import.meta.env.VITE_PLAYBACK_START_TIMESTAMP || '2025-09-01T00:00:00Z').trim();
 const PLAYBACK_STEP_MINUTES = Math.max(1, Number(import.meta.env.VITE_PLAYBACK_STEP_MINUTES || '1'));
 const PLAYBACK_TICK_MS = Math.max(1000, Number(import.meta.env.VITE_PLAYBACK_TICK_MS || '60000'));
