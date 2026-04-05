@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Smart STP">
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#2563eb" />
+      <stop offset="100%" stop-color="#0ea5e9" />
+    </linearGradient>
+  </defs>
+  <rect width="64" height="64" rx="14" fill="url(#g)" />
+  <path d="M32 12c6 8 10 14 10 20a10 10 0 1 1-20 0c0-6 4-12 10-20z" fill="#fff" opacity="0.92" />
+  <circle cx="32" cy="36" r="5" fill="#2563eb" opacity="0.8" />
+</svg>

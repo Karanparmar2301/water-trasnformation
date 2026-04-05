@@ -1,0 +1,5 @@
+{
+  "name": "Smart STP Monitoring Dashboard",
+  "description": "Production-ready Sewage Treatment Plant monitoring system with real-time sensor data, historical charts, and KPIs.",
+  "requestFramePermissions": []
+}
