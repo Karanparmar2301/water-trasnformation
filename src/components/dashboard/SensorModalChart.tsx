@@ -1,10 +1,9 @@
-import { useMemo } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { format } from 'date-fns';
 import {
   CartesianGrid,
   Line,
   LineChart,
-  ResponsiveContainer,
   Tooltip,
   XAxis,
   YAxis,
@@ -20,6 +19,47 @@ interface SensorModalChartProps {
 }
 
 export function SensorModalChart({ points }: SensorModalChartProps) {
+  const chartContainerRef = useRef<HTMLDivElement | null>(null);
+  const [chartSize, setChartSize] = useState({ width: 0, height: 0 });
+
+  useEffect(() => {
+    const element = chartContainerRef.current;
+    if (!element) {
+      return;
+    }
+
+    const updateSize = () => {
+      const width = Math.floor(element.clientWidth);
+      const height = Math.floor(element.clientHeight);
+
+      setChartSize((previous) => {
+        if (previous.width === width && previous.height === height) {
+          return previous;
+        }
+
+        return { width, height };
+      });
+    };
+
+    updateSize();
+
+    if (typeof ResizeObserver !== 'undefined') {
+      const resizeObserver = new ResizeObserver(() => {
+        updateSize();
+      });
+      resizeObserver.observe(element);
+
+      return () => {
+        resizeObserver.disconnect();
+      };
+    }
+
+    window.addEventListener('resize', updateSize);
+    return () => {
+      window.removeEventListener('resize', updateSize);
+    };
+  }, []);
+
   const chartData = useMemo(
     () =>
       points.map((point) => ({
@@ -38,9 +78,9 @@ export function SensorModalChart({ points }: SensorModalChartProps) {
   }
 
   return (
-    <div className="h-64 min-h-[256px] min-w-0 rounded-xl border border-gray-100 bg-white">
-      <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={256}>
-        <LineChart data={chartData} margin={{ top: 16, right: 16, left: 0, bottom: 8 }}>
+    <div ref={chartContainerRef} className="h-64 min-h-[256px] min-w-0 rounded-xl border border-gray-100 bg-white">
+      {chartSize.width > 0 && chartSize.height > 0 ? (
+        <LineChart width={chartSize.width} height={chartSize.height} data={chartData} margin={{ top: 16, right: 16, left: 0, bottom: 8 }}>
           <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#dbe5ef" />
           <XAxis
             dataKey="timeLabel"
@@ -83,7 +123,9 @@ export function SensorModalChart({ points }: SensorModalChartProps) {
             animationEasing="ease-out"
           />
         </LineChart>
-      </ResponsiveContainer>
+      ) : (
+        <div className="h-full w-full rounded-xl bg-slate-100/50" />
+      )}
     </div>
   );
 }

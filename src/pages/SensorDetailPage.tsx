@@ -1,8 +1,8 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Activity, Droplets, Thermometer, Wind, AlertTriangle } from 'lucide-react';
 import { motion } from 'framer-motion';
-import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip } from 'recharts';
 import { useSensorRealtime } from '../hooks/useSensorRealtime';
 import { useSensorHistory } from '../hooks/useSensorHistory';
 
@@ -21,6 +21,46 @@ export function SensorDetailPage() {
   const { sensorName } = useParams();
   const navigate = useNavigate();
   const [rangeStr, setRangeStr] = useState('24H');
+  const chartContainerRef = useRef<HTMLDivElement | null>(null);
+  const [chartSize, setChartSize] = useState({ width: 0, height: 0 });
+
+  useEffect(() => {
+    const element = chartContainerRef.current;
+    if (!element) {
+      return;
+    }
+
+    const updateSize = () => {
+      const width = Math.floor(element.clientWidth);
+      const height = Math.floor(element.clientHeight);
+
+      setChartSize((previous) => {
+        if (previous.width === width && previous.height === height) {
+          return previous;
+        }
+
+        return { width, height };
+      });
+    };
+
+    updateSize();
+
+    if (typeof ResizeObserver !== 'undefined') {
+      const resizeObserver = new ResizeObserver(() => {
+        updateSize();
+      });
+      resizeObserver.observe(element);
+
+      return () => {
+        resizeObserver.disconnect();
+      };
+    }
+
+    window.addEventListener('resize', updateSize);
+    return () => {
+      window.removeEventListener('resize', updateSize);
+    };
+  }, []);
   
   const { sensor, loading: rLoading } = useSensorRealtime(sensorName || '');
   const { data: historyData, loading: hLoading, error: hError } = useSensorHistory(sensorName || '', timeRangesHours[rangeStr]);
@@ -108,9 +148,9 @@ const sensorValue = typeof sensor.currentValue === 'number' ? sensor.currentValu
               </div>
             </div>
 
-            <div className="h-[300px] min-h-[300px] min-w-0">
-              <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={300}>
-                <AreaChart data={chartData}>
+            <div ref={chartContainerRef} className="h-[300px] min-h-[300px] min-w-0">
+              {chartSize.width > 0 && chartSize.height > 0 ? (
+                <AreaChart width={chartSize.width} height={chartSize.height} data={chartData}>
                   <defs>
                     <linearGradient id="colorValue" x1="0" y1="0" x2="0" y2="1">
                       <stop offset="5%" stopColor="#818cf8" stopOpacity={0.3}/>
@@ -150,7 +190,9 @@ const sensorValue = typeof sensor.currentValue === 'number' ? sensor.currentValu
                     fill="url(#colorValue)"
                   />
                 </AreaChart>
-              </ResponsiveContainer>
+              ) : (
+                <div className="h-full w-full rounded-xl bg-slate-100/50" />
+              )}
             </div>
           </div>
         </div>

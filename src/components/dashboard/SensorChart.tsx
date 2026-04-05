@@ -1,4 +1,5 @@
-import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip } from 'recharts';
+import { useEffect, useRef, useState } from 'react';
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip } from 'recharts';
 import { format } from 'date-fns';
 import { ProcessedSensorData } from '../../types';
 
@@ -8,6 +9,47 @@ interface SensorChartProps {
 }
 
 export function SensorChart({ data, color = '#4FA3C7' }: SensorChartProps) {
+  const chartContainerRef = useRef<HTMLDivElement | null>(null);
+  const [chartSize, setChartSize] = useState({ width: 0, height: 0 });
+
+  useEffect(() => {
+    const element = chartContainerRef.current;
+    if (!element) {
+      return;
+    }
+
+    const updateSize = () => {
+      const width = Math.floor(element.clientWidth);
+      const height = Math.floor(element.clientHeight);
+
+      setChartSize((previous) => {
+        if (previous.width === width && previous.height === height) {
+          return previous;
+        }
+
+        return { width, height };
+      });
+    };
+
+    updateSize();
+
+    if (typeof ResizeObserver !== 'undefined') {
+      const resizeObserver = new ResizeObserver(() => {
+        updateSize();
+      });
+      resizeObserver.observe(element);
+
+      return () => {
+        resizeObserver.disconnect();
+      };
+    }
+
+    window.addEventListener('resize', updateSize);
+    return () => {
+      window.removeEventListener('resize', updateSize);
+    };
+  }, []);
+
   const chartData = data.history.map(h => ({
     time: format(new Date(h.timestamp), 'HH:mm:ss'),
     value: h.value
@@ -26,9 +68,14 @@ export function SensorChart({ data, color = '#4FA3C7' }: SensorChartProps) {
         </div>
       </div>
       
-      <div className="flex-1 w-full min-h-[220px] min-w-0">
-        <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={220}>
-          <AreaChart data={chartData} margin={{ top: 5, right: 0, left: -20, bottom: 0 }}>
+      <div ref={chartContainerRef} className="flex-1 w-full min-h-[220px] min-w-0">
+        {chartSize.width > 0 && chartSize.height > 0 ? (
+          <AreaChart
+            width={chartSize.width}
+            height={chartSize.height}
+            data={chartData}
+            margin={{ top: 5, right: 0, left: -20, bottom: 0 }}
+          >
             <defs>
               <linearGradient id={`color${data.id}`} x1="0" y1="0" x2="0" y2="1">
                 <stop offset="5%" stopColor={color} stopOpacity={0.2}/>
@@ -63,7 +110,9 @@ export function SensorChart({ data, color = '#4FA3C7' }: SensorChartProps) {
               isAnimationActive={false}
             />
           </AreaChart>
-        </ResponsiveContainer>
+        ) : (
+          <div className="h-full w-full rounded-xl bg-slate-100/50" />
+        )}
       </div>
     </div>
   );
