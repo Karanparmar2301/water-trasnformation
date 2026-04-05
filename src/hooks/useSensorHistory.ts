@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { supabase, supabaseSchema } from '../lib/supabase';
+import { fromSupabaseTable, supabase } from '../lib/supabase';
 import { resolveReadingsSource } from '../lib/readingsApi';
 import {
   normalizeSensorToken,
@@ -147,12 +147,14 @@ export function useSensorHistory(sensorName: string, range: SensorRange | number
         let cursor: number | null = null;
 
         for (let page = 0; page < maxPages; page += 1) {
-          let query = (supabase as any)
-            .schema(supabaseSchema)
-            .from(table)
-            .select('*')
-            .order(idColumn, { ascending: false })
-            .limit(HISTORY_PAGE_SIZE);
+          const tableQuery = fromSupabaseTable(table);
+          if (!tableQuery) {
+            setError(`Invalid readings table configuration for "${table}".`);
+            setLoading(false);
+            return;
+          }
+
+          let query = (tableQuery as any).select('*').order(idColumn, { ascending: false }).limit(HISTORY_PAGE_SIZE);
 
           if (cursor !== null) {
             query = query.lt(idColumn, cursor);
@@ -192,11 +194,14 @@ export function useSensorHistory(sensorName: string, range: SensorRange | number
           }
         }
       } else {
-        const result = (await (supabase as any)
-          .schema(supabaseSchema)
-          .from(table)
-          .select('*')
-          .limit(HISTORY_PAGE_SIZE * maxPages)) as QueryResult;
+        const tableQuery = fromSupabaseTable(table);
+        if (!tableQuery) {
+          setError(`Invalid readings table configuration for "${table}".`);
+          setLoading(false);
+          return;
+        }
+
+        const result = (await (tableQuery as any).select('*').limit(HISTORY_PAGE_SIZE * maxPages)) as QueryResult;
 
         if (!isActive) {
           return;

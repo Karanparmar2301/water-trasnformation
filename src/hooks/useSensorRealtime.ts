@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { RealtimeChannel } from '@supabase/supabase-js';
-import { supabase, supabaseSchema } from '../lib/supabase';
+import { fromSupabaseTable, supabase, supabaseRealtimeSchema } from '../lib/supabase';
 import { resolveReadingsSource } from '../lib/readingsApi';
 import { useStore } from '../store/useStore';
 import {
@@ -124,10 +124,13 @@ export function useSensorRealtime(sensorName: string): UseSensorRealtimeResult {
       );
       const idColumn = sourceResult.source?.idColumn;
 
-      let query = (supabase as any)
-        .schema(supabaseSchema)
-        .from(sourceTable)
-        .select('*');
+      const sourceTableQuery = fromSupabaseTable(sourceTable);
+      if (!sourceTableQuery) {
+        setError(`Invalid readings table configuration for "${sourceTable}".`);
+        return timestampCandidates;
+      }
+
+      let query = (sourceTableQuery as any).select('*');
 
       if (idColumn) {
         query = query.order(idColumn, { ascending: false });
@@ -168,7 +171,7 @@ export function useSensorRealtime(sensorName: string): UseSensorRealtimeResult {
           'postgres_changes',
           {
             event: 'INSERT',
-            schema: supabaseSchema,
+            schema: supabaseRealtimeSchema,
             table: sourceTable,
           },
           (payload) => {

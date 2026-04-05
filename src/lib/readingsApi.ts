@@ -1,6 +1,6 @@
 import { RealtimeChannel } from '@supabase/supabase-js';
 import { SENSORS, SensorReading } from '../types';
-import { supabase, supabaseSchema } from './supabase';
+import { fromSupabaseTable, sanitizeSupabaseIdentifier, supabase, supabaseRealtimeSchema } from './supabase';
 
 interface ReadingsSource {
   table: string;
@@ -119,10 +119,10 @@ function buildSensorLookup(): Map<string, string> {
 const sensorLookup = buildSensorLookup();
 
 function parseConfiguredTables(): string[] {
-  const fromSingle = (import.meta.env.VITE_SUPABASE_READINGS_TABLE || '').trim();
+  const fromSingle = sanitizeSupabaseIdentifier(import.meta.env.VITE_SUPABASE_READINGS_TABLE || '');
   const fromList = (import.meta.env.VITE_SUPABASE_READINGS_TABLES || '')
     .split(',')
-    .map((item: string) => item.trim())
+    .map((item: string) => sanitizeSupabaseIdentifier(item))
     .filter((item: string) => item.length > 0);
 
   const ordered = [fromSingle, ...fromList, ...DEFAULT_TABLE_CANDIDATES].filter((item) => item.length > 0);
@@ -378,7 +378,12 @@ export async function resolveReadingsSource(forceRefresh = false): Promise<Resol
   const candidates = parseConfiguredTables();
 
   for (const table of candidates) {
-    const probeResult = await supabase.schema(supabaseSchema).from(table).select('*').limit(1);
+    const probeQuery = fromSupabaseTable(table);
+    if (!probeQuery) {
+      continue;
+    }
+
+    const probeResult = await probeQuery.select('*').limit(1);
 
     if (probeResult.error) {
       if (isMissingTableError(probeResult.error.message)) {
@@ -432,7 +437,16 @@ export async function fetchReadings(options: FetchReadingsOptions = {}): Promise
   }
 
   const source = sourceResult.source;
-  let query = supabase.schema(supabaseSchema).from(source.table).select('*');
+  const baseQuery = fromSupabaseTable(source.table);
+  if (!baseQuery) {
+    return {
+      source,
+      readings: [],
+      error: `Invalid readings table configuration for "${source.table}".`,
+    };
+  }
+
+  let query = baseQuery.select('*');
   const hasSinceIso = Boolean(options.sinceIso);
   const requestedLimit = options.limit && options.limit > 0 ? options.limit : 0;
   let queryLimit = requestedLimit;
@@ -459,11 +473,16 @@ export async function fetchReadings(options: FetchReadingsOptions = {}): Promise
 
   if (result.error) {
     if (isStatementTimeoutError(result.error.message) && source.idColumn) {
-      let fallbackQuery = supabase
-        .schema(supabaseSchema)
-        .from(source.table)
-        .select('*')
-        .order(source.idColumn, { ascending: false });
+      const fallbackBaseQuery = fromSupabaseTable(source.table);
+      if (!fallbackBaseQuery) {
+        return {
+          source,
+          readings: [],
+          error: `Invalid readings table configuration for "${source.table}".`,
+        };
+      }
+
+      let fallbackQuery = fallbackBaseQuery.select('*').order(source.idColumn, { ascending: false });
 
       if (options.limit && options.limit > 0) {
         fallbackQuery = fallbackQuery.limit(options.limit);
@@ -559,9 +578,16 @@ export async function fetchReadingsWindow(options: FetchReadingsWindowOptions): 
     };
   }
 
-  let query = supabase
-    .schema(supabaseSchema)
-    .from(source.table)
+  const windowBaseQuery = fromSupabaseTable(source.table);
+  if (!windowBaseQuery) {
+    return {
+      source,
+      readings: [],
+      error: `Invalid readings table configuration for "${source.table}".`,
+    };
+  }
+
+  let query = windowBaseQuery
     .select('*')
     .gte(source.timestampColumn, options.windowStartIso)
     .lt(source.timestampColumn, options.windowEndIso)
@@ -616,9 +642,16 @@ export async function fetchReadingsByIdRange(options: FetchReadingsByIdRangeOpti
     };
   }
 
-  let query = supabase
-    .schema(supabaseSchema)
-    .from(source.table)
+  const idRangeBaseQuery = fromSupabaseTable(source.table);
+  if (!idRangeBaseQuery) {
+    return {
+      source,
+      readings: [],
+      error: `Invalid readings table configuration for "${source.table}".`,
+    };
+  }
+
+  let query = idRangeBaseQuery
     .select('*')
     .gte(source.idColumn, options.rangeStartInclusive)
     .lt(source.idColumn, options.rangeEndExclusive)
@@ -673,12 +706,15 @@ export async function fetchLatestReadingsAnchor(
   }
 
   const columns = `${source.idColumn},${source.timestampColumn}`;
-  const result = await supabase
-    .schema(supabaseSchema)
-    .from(source.table)
-    .select(columns)
-    .order(source.idColumn, { ascending: false })
-    .limit(1);
+  const anchorBaseQuery = fromSupabaseTable(source.table);
+  if (!anchorBaseQuery) {
+    return {
+      source,
+      error: `Invalid readings table configuration for "${source.table}".`,
+    };
+  }
+
+  const result = await anchorBaseQuery.select(columns).order(source.idColumn, { ascending: false }).limit(1);
 
   if (result.error) {
     return {
@@ -749,12 +785,15 @@ export async function fetchEarliestReadingsAnchor(
   }
 
   const columns = `${source.idColumn},${source.timestampColumn}`;
-  const result = await supabase
-    .schema(supabaseSchema)
-    .from(source.table)
-    .select(columns)
-    .order(source.idColumn, { ascending: true })
-    .limit(1);
+  const earliestAnchorBaseQuery = fromSupabaseTable(source.table);
+  if (!earliestAnchorBaseQuery) {
+    return {
+      source,
+      error: `Invalid readings table configuration for "${source.table}".`,
+    };
+  }
+
+  const result = await earliestAnchorBaseQuery.select(columns).order(source.idColumn, { ascending: true }).limit(1);
 
   if (result.error) {
     return {
@@ -810,7 +849,7 @@ export function subscribeToReadings(options: SubscribeOptions): RealtimeChannel 
       'postgres_changes',
       {
         event: 'INSERT',
-        schema: supabaseSchema,
+        schema: supabaseRealtimeSchema,
         table: options.source.table,
       },
       (payload) => {

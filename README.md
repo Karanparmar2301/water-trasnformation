@@ -18,6 +18,7 @@ View your app in AI Studio: https://ai.studio/apps/bb8966ca-0c62-4b09-924f-c2824
 2. Configure Supabase in `.env`:
    - `VITE_SUPABASE_URL`
    - `VITE_SUPABASE_ANON_KEY`
+   - `VITE_SUPABASE_SCHEMA` (`public` by default, and for deployment dashboards enter this value without surrounding quotes)
    - If these are not set in deployment, the app now falls back to the bundled project defaults.
      Environment variables are still recommended so you can manage credentials without code changes.
    - Optional: `VITE_SUPABASE_READINGS_TABLE` (exact table name)
